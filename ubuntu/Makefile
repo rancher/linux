@@ -16,9 +16,8 @@ obj-$(CONFIG_DM_RAID45)		+= dm-raid4-5/
 ##
 ##
 ##
-ifneq ($(ARCH),arm)
-#obj-m				+= lttng/
-endif
+#obj-$(CONFIG_AUFS_FS)		+= aufs/
+##
 ##
 ##
 ##
