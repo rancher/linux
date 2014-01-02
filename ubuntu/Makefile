@@ -17,8 +17,8 @@ ifneq ($(ARCH),arm)
 endif
 ##
 ##
-obj-$(CONFIG_AUFS_FS)		+= aufs/
 ##
+obj-$(CONFIG_AUFS_FS)		+= aufs/
 ##
 ##
 ##
