@@ -12,12 +12,12 @@
 ##
 ##
 ##
-##
-##
-##
 ifneq ($(ARCH),arm)
 #obj-m				+= lttng/
 endif
+##
+##
+##
 ##
 ##
 ##
