@@ -12,12 +12,6 @@
 ##
 ##
 ##
-ifneq ($(ARCH),arm)
-#obj-m				+= lttng/
-endif
-##
-##
-##
 obj-$(CONFIG_AUFS_FS)		+= aufs/
 ##
 ##
