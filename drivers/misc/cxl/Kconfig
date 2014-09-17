@@ -1,0 +1,7 @@
+#
+# IBM Coherent Accelerator (CXL) compatible devices
+#
+
+config CXL_BASE
+	bool
+	default n
