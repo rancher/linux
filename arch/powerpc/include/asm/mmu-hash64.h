@@ -200,6 +200,8 @@ static inline unsigned int mmu_psize_to_shift(unsigned int mmu_psize)
  * we work in all cases including 4k page size.
  */
 #define VPN_SHIFT	12
+#define slb_vsid_shift(ssize)	\
+	((ssize) == MMU_SEGSIZE_256M ? SLB_VSID_SHIFT : SLB_VSID_SHIFT_1T)
 
 /*
  * HPTE Large Page (LP) details
