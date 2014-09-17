@@ -34,6 +34,7 @@
 #include <linux/signal.h>
 #include <linux/memblock.h>
 #include <linux/context_tracking.h>
+#include <misc/cxl.h>
 
 #include <asm/processor.h>
 #include <asm/pgtable.h>
@@ -918,6 +919,7 @@ void demote_segment_4k(struct mm_struct *mm, unsigned long addr)
 #ifdef CONFIG_SPU_BASE
 	spu_flush_all_slbs(mm);
 #endif
+	cxl_slbia(mm);
 	if (get_paca_psize(addr) != MMU_PAGE_4K) {
 		get_paca()->context = mm->context;
 		slb_flush_and_rebolt();
@@ -1157,6 +1159,7 @@ int hash_page_mm(struct mm_struct *mm, unsigned long ea, unsigned long access, u
 #ifdef CONFIG_SPU_BASE
 			spu_flush_all_slbs(mm);
 #endif
+			cxl_slbia(mm);
 		}
 	}
 
