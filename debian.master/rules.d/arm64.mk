@@ -18,3 +18,4 @@ do_tools_perf   = true
 dtb_files_generic += apm-mustang.dtb
 dtb_files_generic += foundation-v8.dtb
 dtb_files_generic += rtsm_ve-aemv8a.dtb
+dtb_files_generic += thunder-88xx.dtb
