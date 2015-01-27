@@ -4,6 +4,10 @@ linux (3.18.0-12.13) UNRELEASED; urgency=low
   CHANGELOG: Use the printchanges target to see the curent changes.
   CHANGELOG: Use the insertchanges target to create the final log.
 
+  [ Leann Ogasawara ]
+
+  * rebase to v3.18.4
+
  -- Leann Ogasawara <leann.ogasawara@canonical.com>  Mon, 26 Jan 2015 13:03:57 -0800
 
 linux (3.18.0-11.12) vivid; urgency=low
