@@ -1,0 +1,34 @@
+#!/bin/bash
+#
+# vbox-update <dkms top level>
+
+# dpkg-deb -R virtualbox-guest-dkms_4.3.20-dfsg-1ubuntu1_all.deb ~/X
+# vbox-update ~/X
+#
+
+if [ "$#" -ne 1 ]; then
+	echo "Usage: $0 <unpacked vbox dkms guest directory>" 1>&2
+	exit 1
+fi
+vbox="$1"
+
+# Update vbox ...
+git rm -rf vbox
+mkdir vbox
+cp -rp "$vbox/usr/src/"*/* vbox
+
+# Work out what version this represents.
+ver=`awk '($1 == "Version:") { print $2 }' <"$vbox/DEBIAN/control"`
+
+# Fix up the KBUILD_EXTMOD as we are not building externally.
+#KBUILD_EXTMOD=${srctree}/ubuntu/vbox
+for make in vbox/*/Makefile
+do
+	sed -i -e '1iKBUILD_EXTMOD=${srctree}/ubuntu/vbox' $make
+done
+#sed -i -e '1iEXTRA_CFLAGS += -I$(src)/include' aufs/Makefile
+
+git add vbox
+{
+	echo "UBUNTU: ubuntu: vbox -- update to $ver"
+} | git commit -s -F -
