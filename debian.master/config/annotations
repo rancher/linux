@@ -625,6 +625,7 @@ CONFIG_I2C_OMAP					p policy<(arch armel armhf &/ value y) | value m> note<boot 
 
 # Menu: Device Drivers >> I2C support
 CONFIG_I2C					y
+CONFIG_I2C_CHARDEV				y note<LP:1417032>
 CONFIG_I2C_COMPAT				y mark<COMPAT>
 CONFIG_I2C_HELPER_AUTO				y
 
