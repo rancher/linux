@@ -42,6 +42,8 @@
 #define TCMU_MAILBOX_VERSION 2
 #define ALIGN_SIZE 64 /* Should be enough for most CPUs */
 
+#define TCMU_MAILBOX_FLAG_ASYNC	0x1
+
 /* See https://gcc.gnu.org/onlinedocs/cpp/Stringification.html */
 #define xstr(s) str(s)
 #define str(s) #s
