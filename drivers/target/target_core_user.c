@@ -1228,7 +1228,7 @@ static ssize_t tcmu_show_configfs_dev_params(struct se_device *dev, char *b)
 
 	bl = sprintf(b + bl, "Config: %s ",
 		     udev->dev_config[0] ? udev->dev_config : "NULL");
-	bl += sprintf(b + bl, "Size: %zu\n", udev->dev_size);
+	bl += sprintf(b + bl, "Size: %zu ", udev->dev_size);
 	bl += sprintf(b + bl, "Async: %s\n",
 		test_bit(TCMU_DEV_BIT_ASYNC, &udev->flags) ? "yes" : "no");
 
