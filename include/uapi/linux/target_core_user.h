@@ -46,6 +46,8 @@
 #define xstr(s) str(s)
 #define str(s) #s
 
+#define TCMU_MAILBOX_FLAG_ASYNC	0x1
+
 struct tcmu_mailbox {
 	__u16 version;
 	__u16 flags;
