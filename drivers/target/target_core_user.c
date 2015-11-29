@@ -504,7 +504,7 @@ static bool is_ring_space_avail(struct tcmu_cmd *cmd, size_t cmd_size)
 		struct se_cmd *se_cmd = cmd->se_cmd;
 		size_t pages_needed = se_cmd->t_bidi_data_nents + se_cmd->t_data_nents;
 
-		if (udev->data_pages_used + pages_needed < DATA_PAGES) {
+		if (udev->data_pages_used + pages_needed >= DATA_PAGES) {
 			pr_debug("no data space: needed %zu, avail %zu/%d\n",
 				pages_needed, udev->data_pages_used, DATA_PAGES);
 			return false;
