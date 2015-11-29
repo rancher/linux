@@ -103,6 +103,7 @@ struct tcmu_dev {
 	size_t data_tail;
 	/* async data area */
 	size_t data_pages_used;
+	size_t max_data_pages_used;
 	int free_data_pages[DATA_PAGES];
 
 	wait_queue_head_t wait_cmdr;
@@ -237,8 +238,10 @@ static inline size_t head_to_end(size_t head, size_t size)
 
 static void map_data_page(struct tcmu_dev *udev, struct scatterlist *sg)
 {
-	BUG_ON(udev->data_pages_used >= DATA_PAGES);
+	BUG_ON(udev->data_pages_used > DATA_PAGES);
 	sg->dma_address = udev->free_data_pages[udev->data_pages_used++];
+	if (udev->data_pages_used > udev->max_data_pages_used)
+		udev->max_data_pages_used = udev->data_pages_used;
 }
 
 static void unmap_data_page(struct tcmu_dev *udev, struct scatterlist *sg)
@@ -504,8 +507,8 @@ static bool is_ring_space_avail(struct tcmu_cmd *cmd, size_t cmd_size)
 		struct se_cmd *se_cmd = cmd->se_cmd;
 		size_t pages_needed = se_cmd->t_bidi_data_nents + se_cmd->t_data_nents;
 
-		if (udev->data_pages_used + pages_needed >= DATA_PAGES) {
-			pr_debug("no data space: needed %zu, avail %zu/%d\n",
+		if (udev->data_pages_used + pages_needed > DATA_PAGES) {
+			pr_debug("no data space: needed %zu, used %zu/%d\n",
 				pages_needed, udev->data_pages_used, DATA_PAGES);
 			return false;
 		}
@@ -1040,7 +1043,6 @@ static int tcmu_configure_device(struct se_device *dev)
 	udev->cmdr_size = CMDR_SIZE - CMDR_OFF;
 	udev->data_off = CMDR_SIZE;
 	udev->data_size = TCMU_RING_SIZE - CMDR_SIZE;
-	udev->data_pages_used = 0;
 	for (i = 0; i < ARRAY_SIZE(udev->free_data_pages); i++)
 		udev->free_data_pages[i] = udev->data_off + (i * DATA_PAGE_SIZE);
 
@@ -1147,7 +1149,7 @@ static match_table_t tokens = {
 	{Opt_dev_config, "dev_config=%s"},
 	{Opt_dev_size, "dev_size=%u"},
 	{Opt_hw_block_size, "hw_block_size=%u"},
-	{Opt_async, "async"},
+	{Opt_async, "async=%u"},
 	{Opt_err, NULL}
 };
 
@@ -1210,7 +1212,25 @@ static ssize_t tcmu_set_configfs_dev_params(struct se_device *dev,
 			dev->dev_attrib.hw_block_size = tmp_ul;
 			break;
 		case Opt_async:
-			set_bit(TCMU_DEV_BIT_ASYNC, &udev->flags);
+			if (test_bit(TCMU_DEV_BIT_OPEN, &udev->flags)) {
+				pr_err("failed to change async mode: device in use\n");
+				break;
+			}
+			arg_p = match_strdup(&args[0]);
+			if (!arg_p) {
+				ret = -ENOMEM;
+				break;
+			}
+			ret = kstrtoul(arg_p, 0, &tmp_ul);
+			kfree(arg_p);
+			if (ret < 0) {
+				pr_err("kstrtoul() failed for hw_block_size=\n");
+				break;
+			}
+			if (tmp_ul)
+				set_bit(TCMU_DEV_BIT_ASYNC, &udev->flags);
+			else
+				clear_bit(TCMU_DEV_BIT_ASYNC, &udev->flags);
 			break;
 		default:
 			break;
@@ -1231,6 +1251,15 @@ static ssize_t tcmu_show_configfs_dev_params(struct se_device *dev, char *b)
 	bl += sprintf(b + bl, "Size: %zu ", udev->dev_size);
 	bl += sprintf(b + bl, "Async: %s\n",
 		test_bit(TCMU_DEV_BIT_ASYNC, &udev->flags) ? "yes" : "no");
+	if (test_bit(TCMU_DEV_BIT_ASYNC, &udev->flags)) {
+		int i;
+
+		bl += sprintf(b + bl, "Data pages: %zu/%zu/%d\n",
+			udev->data_pages_used, udev->max_data_pages_used, DATA_PAGES);
+		for (i = 0; i < 10; i++) {
+			bl += sprintf(b + bl, "Page %d: 0x%0x\n", i, udev->free_data_pages[i]);
+		}
+	}
 
 	return bl;
 }
