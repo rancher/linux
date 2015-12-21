@@ -859,6 +859,7 @@ static struct se_device *tcmu_alloc_device(struct se_hba *hba, const char *name)
 	}
 
 	udev->hba = hba;
+	set_bit(TCMU_DEV_BIT_ASYNC, &udev->flags);
 
 	init_waitqueue_head(&udev->wait_cmdr);
 	spin_lock_init(&udev->cmdr_lock);
@@ -1050,8 +1051,6 @@ static int tcmu_configure_device(struct se_device *dev)
 
 	mb = udev->mb_addr;
 	mb->version = TCMU_MAILBOX_VERSION;
-	if (test_bit(TCMU_DEV_BIT_ASYNC, &udev->flags))
-		mb->flags |= TCMU_MAILBOX_FLAG_ASYNC;
 	mb->cmdr_off = CMDR_OFF;
 	mb->cmdr_size = udev->cmdr_size;
 
@@ -1146,14 +1145,13 @@ static void tcmu_free_device(struct se_device *dev)
 }
 
 enum {
-	Opt_dev_config, Opt_dev_size, Opt_hw_block_size, Opt_async, Opt_err,
+	Opt_dev_config, Opt_dev_size, Opt_hw_block_size, Opt_err,
 };
 
 static match_table_t tokens = {
 	{Opt_dev_config, "dev_config=%s"},
 	{Opt_dev_size, "dev_size=%u"},
 	{Opt_hw_block_size, "hw_block_size=%u"},
-	{Opt_async, "async=%u"},
 	{Opt_err, NULL}
 };
 
@@ -1214,27 +1212,6 @@ static ssize_t tcmu_set_configfs_dev_params(struct se_device *dev,
 				break;
 			}
 			dev->dev_attrib.hw_block_size = tmp_ul;
-			break;
-		case Opt_async:
-			if (test_bit(TCMU_DEV_BIT_OPEN, &udev->flags)) {
-				pr_err("failed to change async mode: device in use\n");
-				break;
-			}
-			arg_p = match_strdup(&args[0]);
-			if (!arg_p) {
-				ret = -ENOMEM;
-				break;
-			}
-			ret = kstrtoul(arg_p, 0, &tmp_ul);
-			kfree(arg_p);
-			if (ret < 0) {
-				pr_err("kstrtoul() failed for hw_block_size=\n");
-				break;
-			}
-			if (tmp_ul)
-				set_bit(TCMU_DEV_BIT_ASYNC, &udev->flags);
-			else
-				clear_bit(TCMU_DEV_BIT_ASYNC, &udev->flags);
 			break;
 		default:
 			break;
