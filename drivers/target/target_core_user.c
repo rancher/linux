@@ -1074,8 +1074,10 @@ static int tcmu_configure_device(struct se_device *dev)
 	if (ret)
 		goto err_register;
 
+	/* User can set hw_block_size before enable the device */
+	if (dev->dev_attrib.hw_block_size == 0)
+		dev->dev_attrib.hw_block_size = 512;
 	/* Other attributes can be configured in userspace */
-	dev->dev_attrib.hw_block_size = 512;
 	dev->dev_attrib.hw_max_sectors = 128;
 	dev->dev_attrib.hw_queue_depth = 128;
 
@@ -1249,6 +1251,7 @@ static ssize_t tcmu_show_configfs_dev_params(struct se_device *dev, char *b)
 	bl = sprintf(b + bl, "Config: %s ",
 		     udev->dev_config[0] ? udev->dev_config : "NULL");
 	bl += sprintf(b + bl, "Size: %zu ", udev->dev_size);
+	bl += sprintf(b + bl, "Block Size: %u ", dev->dev_attrib.block_size);
 	bl += sprintf(b + bl, "Async: %s\n",
 		test_bit(TCMU_DEV_BIT_ASYNC, &udev->flags) ? "yes" : "no");
 	if (test_bit(TCMU_DEV_BIT_ASYNC, &udev->flags)) {
