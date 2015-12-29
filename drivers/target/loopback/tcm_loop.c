@@ -1041,9 +1041,26 @@ static ssize_t tcm_loop_tpg_store_transport_status(
 
 TF_TPG_BASE_ATTR(tcm_loop, transport_status, S_IRUGO | S_IWUSR);
 
+static ssize_t tcm_loop_tpg_show_address(
+	struct se_portal_group *se_tpg,
+	char *page)
+{
+	struct tcm_loop_tpg *tl_tpg = container_of(se_tpg,
+			struct tcm_loop_tpg, tl_se_tpg);
+	struct tcm_loop_hba *tl_hba = tl_tpg->tl_hba;
+	ssize_t ret = -EINVAL;
+
+	ret = snprintf(page, PAGE_SIZE, "%d:0:%d\n",
+			tl_hba->sh->host_no, tl_tpg->tl_tpgt);
+	return ret;
+}
+
+TF_TPG_BASE_ATTR_RO(tcm_loop, address);
+
 static struct configfs_attribute *tcm_loop_tpg_attrs[] = {
 	&tcm_loop_tpg_nexus.attr,
 	&tcm_loop_tpg_transport_status.attr,
+	&tcm_loop_tpg_address.attr,
 	NULL,
 };
 
