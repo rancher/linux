@@ -17,6 +17,8 @@
  * 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
+#define DEBUG
+
 #include <linux/spinlock.h>
 #include <linux/module.h>
 #include <linux/idr.h>
@@ -63,7 +65,7 @@
 #define TCMU_TIME_OUT (30 * MSEC_PER_SEC)
 
 #define CMDR_SIZE (16 * 4096)
-#define DATA_PAGES 257
+#define DATA_PAGES 4096
 #define DATA_PAGE_SIZE PAGE_SIZE
 #define DATA_SIZE (DATA_PAGES * DATA_PAGE_SIZE)
 
@@ -1078,8 +1080,8 @@ static int tcmu_configure_device(struct se_device *dev)
 	if (dev->dev_attrib.hw_block_size == 0)
 		dev->dev_attrib.hw_block_size = 512;
 	/* Other attributes can be configured in userspace */
-	dev->dev_attrib.hw_max_sectors = 128;
-	dev->dev_attrib.hw_queue_depth = 128;
+	dev->dev_attrib.hw_max_sectors = 16;
+	dev->dev_attrib.hw_queue_depth = 8;
 
 	ret = tcmu_netlink_event(TCMU_CMD_ADDED_DEVICE, udev->uio_info.name,
 				 udev->uio_info.uio_dev->minor);
