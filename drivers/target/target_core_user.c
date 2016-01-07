@@ -500,6 +500,8 @@ static bool is_ring_space_avail(struct tcmu_cmd *cmd, size_t cmd_size)
 
 	space = spc_free(cmd_head, udev->cmdr_last_cleaned, udev->cmdr_size);
 	if (space < cmd_needed) {
+		pr_debug("cmd size, needed, space: %lu %lu %lu\n", cmd_size, cmd_needed,
+				space);
 		pr_debug("no cmd space: %u %u %u\n", cmd_head,
 		       udev->cmdr_last_cleaned, udev->cmdr_size);
 		return false;
@@ -1082,7 +1084,7 @@ static int tcmu_configure_device(struct se_device *dev)
 		dev->dev_attrib.hw_block_size = 512;
 	/* Other attributes can be configured in userspace */
 	dev->dev_attrib.hw_max_sectors = 16;
-	dev->dev_attrib.hw_queue_depth = 8;
+	dev->dev_attrib.hw_queue_depth = 16;
 
 	ret = tcmu_netlink_event(TCMU_CMD_ADDED_DEVICE, udev->uio_info.name,
 				 udev->uio_info.uio_dev->minor);
