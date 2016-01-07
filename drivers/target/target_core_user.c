@@ -375,6 +375,8 @@ static bool is_ring_space_avail(struct tcmu_dev *udev, size_t cmd_size, size_t d
 
 	space = spc_free(cmd_head, udev->cmdr_last_cleaned, udev->cmdr_size);
 	if (space < cmd_needed) {
+		pr_debug("cmd size, needed, space: %lu %lu %lu\n", cmd_size, cmd_needed,
+				space);
 		pr_debug("no cmd space: %u %u %u\n", cmd_head,
 		       udev->cmdr_last_cleaned, udev->cmdr_size);
 		return false;
