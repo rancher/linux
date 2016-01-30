@@ -1,10 +1,11 @@
 /*
- * PCIe host controller driver for HiSilicon Hip05 SoC
+ * PCIe host controller driver for HiSilicon SoCs
  *
  * Copyright (C) 2015 HiSilicon Co., Ltd. http://www.hisilicon.com
  *
- * Author: Zhou Wang <wangzhou1@hisilicon.com>
- *         Dacai Zhu <zhudacai@hisilicon.com>
+ * Authors: Zhou Wang <wangzhou1@hisilicon.com>
+ *          Dacai Zhu <zhudacai@hisilicon.com>
+ *          Gabriele Paoloni <gabriele.paoloni@huawei.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -16,100 +17,15 @@
 #include <linux/of_address.h>
 #include <linux/of_pci.h>
 #include <linux/platform_device.h>
+#include <linux/of_device.h>
 #include <linux/regmap.h>
 
 #include "pcie-designware.h"
+#include "pcie-hisi.h"
 
-#define PCIE_SUBCTRL_SYS_STATE4_REG                     0x6818
-#define PCIE_LTSSM_LINKUP_STATE                         0x11
-#define PCIE_LTSSM_STATE_MASK                           0x3F
-
-#define to_hisi_pcie(x)	container_of(x, struct hisi_pcie, pp)
-
-struct hisi_pcie {
-	struct regmap *subctrl;
-	void __iomem *reg_base;
-	u32 port_id;
-	struct pcie_port pp;
-};
-
-static inline void hisi_pcie_apb_writel(struct hisi_pcie *pcie,
-					u32 val, u32 reg)
-{
-	writel(val, pcie->reg_base + reg);
-}
-
-static inline u32 hisi_pcie_apb_readl(struct hisi_pcie *pcie, u32 reg)
-{
-	return readl(pcie->reg_base + reg);
-}
-
-/* Hip05 PCIe host only supports 32-bit config access */
-static int hisi_pcie_cfg_read(struct pcie_port *pp, int where, int size,
-			      u32 *val)
-{
-	u32 reg;
-	u32 reg_val;
-	struct hisi_pcie *pcie = to_hisi_pcie(pp);
-	void *walker = &reg_val;
-
-	walker += (where & 0x3);
-	reg = where & ~0x3;
-	reg_val = hisi_pcie_apb_readl(pcie, reg);
-
-	if (size == 1)
-		*val = *(u8 __force *) walker;
-	else if (size == 2)
-		*val = *(u16 __force *) walker;
-	else if (size != 4)
-		return PCIBIOS_BAD_REGISTER_NUMBER;
-
-	return PCIBIOS_SUCCESSFUL;
-}
-
-/* Hip05 PCIe host only supports 32-bit config access */
-static int hisi_pcie_cfg_write(struct pcie_port *pp, int where, int  size,
-				u32 val)
-{
-	u32 reg_val;
-	u32 reg;
-	struct hisi_pcie *pcie = to_hisi_pcie(pp);
-	void *walker = &reg_val;
-
-	walker += (where & 0x3);
-	reg = where & ~0x3;
-	if (size == 4)
-		hisi_pcie_apb_writel(pcie, val, reg);
-	else if (size == 2) {
-		reg_val = hisi_pcie_apb_readl(pcie, reg);
-		*(u16 __force *) walker = val;
-		hisi_pcie_apb_writel(pcie, reg_val, reg);
-	} else if (size == 1) {
-		reg_val = hisi_pcie_apb_readl(pcie, reg);
-		*(u8 __force *) walker = val;
-		hisi_pcie_apb_writel(pcie, reg_val, reg);
-	} else
-		return PCIBIOS_BAD_REGISTER_NUMBER;
-
-	return PCIBIOS_SUCCESSFUL;
-}
-
-static int hisi_pcie_link_up(struct pcie_port *pp)
-{
-	u32 val;
-	struct hisi_pcie *hisi_pcie = to_hisi_pcie(pp);
-
-	regmap_read(hisi_pcie->subctrl, PCIE_SUBCTRL_SYS_STATE4_REG +
-		    0x100 * hisi_pcie->port_id, &val);
-
-	return ((val & PCIE_LTSSM_STATE_MASK) == PCIE_LTSSM_LINKUP_STATE);
-}
-
-static struct pcie_host_ops hisi_pcie_host_ops = {
-	.rd_own_conf = hisi_pcie_cfg_read,
-	.wr_own_conf = hisi_pcie_cfg_write,
-	.link_up = hisi_pcie_link_up,
-};
+#define PCIE_SUBCTRL_SYS_STATE4_REG			0x6818
+#define PCIE_HIP06_CTRL_OFF					0x1000
+#define PCIE_SYS_STATE4						0x31c
 
 static int hisi_add_pcie_port(struct pcie_port *pp,
 				     struct platform_device *pdev)
@@ -143,7 +59,9 @@ static int hisi_pcie_probe(struct platform_device *pdev)
 {
 	struct hisi_pcie *hisi_pcie;
 	struct pcie_port *pp;
+	const struct of_device_id *match;
 	struct resource *reg;
+	struct device_driver *driver;
 	int ret;
 
 	hisi_pcie = devm_kzalloc(&pdev->dev, sizeof(*hisi_pcie), GFP_KERNEL);
@@ -152,6 +70,10 @@ static int hisi_pcie_probe(struct platform_device *pdev)
 
 	pp = &hisi_pcie->pp;
 	pp->dev = &pdev->dev;
+	driver = (pdev->dev).driver;
+
+	match = of_match_device(driver->of_match_table, &pdev->dev);
+	hisi_pcie->soc_ops = (struct pcie_soc_ops *) match->data;
 
 	hisi_pcie->subctrl =
 	syscon_regmap_lookup_by_compatible("hisilicon,pcie-sas-subctrl");
@@ -180,10 +102,46 @@ static int hisi_pcie_probe(struct platform_device *pdev)
 	return 0;
 }
 
+static int hisi_pcie_link_up_hip05(struct hisi_pcie *hisi_pcie)
+{
+	u32 val;
+
+	regmap_read(hisi_pcie->subctrl, PCIE_SUBCTRL_SYS_STATE4_REG +
+		    0x100 * hisi_pcie->port_id, &val);
+
+	return ((val & PCIE_LTSSM_STATE_MASK) == PCIE_LTSSM_LINKUP_STATE);
+}
+
+static int hisi_pcie_link_up_hip06(struct hisi_pcie *hisi_pcie)
+{
+	u32 val;
+
+	val = hisi_pcie_apb_readl(hisi_pcie, PCIE_HIP06_CTRL_OFF +
+			PCIE_SYS_STATE4);
+
+	return ((val & PCIE_LTSSM_STATE_MASK) == PCIE_LTSSM_LINKUP_STATE);
+}
+
+static struct pcie_soc_ops hip05_ops = {
+		&hisi_pcie_link_up_hip05
+};
+
+static struct pcie_soc_ops hip06_ops = {
+		&hisi_pcie_link_up_hip06
+};
+
 static const struct of_device_id hisi_pcie_of_match[] = {
-	{.compatible = "hisilicon,hip05-pcie",},
+	{
+			.compatible = "hisilicon,hip05-pcie",
+			.data	    = (void *) &hip05_ops,
+	},
+	{
+			.compatible = "hisilicon,hip06-pcie",
+			.data	    = (void *) &hip06_ops,
+	},
 	{},
 };
+
 
 MODULE_DEVICE_TABLE(of, hisi_pcie_of_match);
 
@@ -196,3 +154,8 @@ static struct platform_driver hisi_pcie_driver = {
 };
 
 module_platform_driver(hisi_pcie_driver);
+
+MODULE_AUTHOR("Zhou Wang <wangzhou1@hisilicon.com>");
+MODULE_AUTHOR("Dacai Zhu <zhudacai@hisilicon.com>");
+MODULE_AUTHOR("Gabriele Paoloni <gabriele.paoloni@huawei.com>");
+MODULE_LICENSE("GPL v2");
