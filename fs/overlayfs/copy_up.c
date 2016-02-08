@@ -22,8 +22,8 @@
 
 int ovl_copy_xattr(struct dentry *old, struct dentry *new)
 {
-	ssize_t list_size, size;
-	char *buf, *name, *value;
+	ssize_t list_size, size, value_size = 0;
+	char *buf, *name, *value = NULL;
 	int error;
 
 	if (!old->d_inode->i_op->getxattr ||
@@ -41,22 +41,43 @@ int ovl_copy_xattr(struct dentry *old, struct dentry *new)
 	if (!buf)
 		return -ENOMEM;
 
-	error = -ENOMEM;
-	value = kmalloc(XATTR_SIZE_MAX, GFP_KERNEL);
-	if (!value)
-		goto out;
-
 	list_size = vfs_listxattr(old, buf, list_size);
 	if (list_size <= 0) {
 		error = list_size;
-		goto out_free_value;
+		goto out;
 	}
 
 	for (name = buf; name < (buf + list_size); name += strlen(name) + 1) {
-		size = vfs_getxattr(old, name, value, XATTR_SIZE_MAX);
+retry:
+		size = vfs_getxattr(old, name, value, value_size);
+		if (size == -ERANGE) {
+			size = vfs_getxattr(old, name, NULL, 0);
+		}
+
 		if (size <= 0) {
 			error = size;
 			goto out_free_value;
+		}
+
+		if (size > value_size) {
+			void *new;
+			new = krealloc(value, size, GFP_KERNEL);
+			if (!new) {
+				error = -ENOMEM;
+				goto out_free_value;
+			}
+			value = new;
+			value_size = size;
+			goto retry;
+		}
+
+		error = security_inode_copy_up_xattr(old, new,
+						     name, value, &size);
+		if (error < 0)
+			goto out_free_value;
+		if (error == 1) {
+			error = 0;
+			continue; /* Discard */
 		}
 		error = vfs_setxattr(new, name, value, size, 0);
 		if (error)
@@ -221,6 +242,10 @@ static int ovl_copy_up_locked(struct dentry *workdir, struct dentry *upperdir,
 	stat->mode = mode;
 	if (err)
 		goto out2;
+
+	err = security_inode_copy_up(lowerpath->dentry, newdentry);
+	if (err < 0)
+		goto out_cleanup;
 
 	if (S_ISREG(stat->mode)) {
 		struct path upperpath;
