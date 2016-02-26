@@ -63,7 +63,7 @@
 
 #define TCMU_TIME_OUT (30 * MSEC_PER_SEC)
 
-#define DATA_BLOCK_BITS 257
+#define DATA_BLOCK_BITS 2048
 #define DATA_BLOCK_SIZE 4096
 
 #define CMDR_SIZE (16 * 4096)
