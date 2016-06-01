@@ -1113,8 +1113,11 @@ static int genlmsg_mcast(struct sk_buff *skb, u32 portid, unsigned long group,
 			}
 			err = nlmsg_multicast(prev->genl_sock, tmp,
 					      portid, group, flags);
+			//we want to continue regardless for other namespaces
+			/*
 			if (err)
 				goto error;
+			*/
 		}
 
 		prev = net;
